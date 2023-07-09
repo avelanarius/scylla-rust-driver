@@ -15,6 +15,7 @@ use uuid::Uuid;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, TryFromPrimitive)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "SCREAMING_SNAKE_CASE"))]
+#[cfg_attr(kani, derive(kani::Arbitrary))]
 #[repr(i16)]
 pub enum Consistency {
     Any = 0x0000,
@@ -147,6 +148,15 @@ fn type_int() {
     }
 }
 
+#[cfg(kani)]
+#[kani::proof]
+fn type_int_kani() {
+    let val = kani::any();
+    let mut buf = Vec::new();
+    write_int(val, &mut buf);
+    assert_eq!(read_int(&mut &buf[..]).unwrap(), val);
+}
+
 pub fn read_long(buf: &mut &[u8]) -> Result<i64, ParseError> {
     let v = buf.read_i64::<BigEndian>()?;
     Ok(v)
@@ -164,6 +174,15 @@ fn type_long() {
         write_long(*val, &mut buf);
         assert_eq!(read_long(&mut &buf[..]).unwrap(), *val);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn type_long_kani() {
+    let val = kani::any();
+    let mut buf = Vec::new();
+    write_long(val, &mut buf);
+    assert_eq!(read_long(&mut &buf[..]).unwrap(), val);
 }
 
 pub fn read_short(buf: &mut &[u8]) -> Result<i16, ParseError> {
@@ -195,6 +214,15 @@ fn type_short() {
         write_short(*val, &mut buf);
         assert_eq!(read_short(&mut &buf[..]).unwrap(), *val);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn type_short_kani() {
+    let val = kani::any();
+    let mut buf = Vec::new();
+    write_short(val, &mut buf);
+    assert_eq!(read_short(&mut &buf[..]).unwrap(), val);
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L208
@@ -280,6 +308,8 @@ fn type_bytes_map() {
     assert_eq!(read_bytes_map(&mut &*buf).unwrap(), val);
 }
 
+// It's hard to model &str/String (not [u8] arrays!) with Kani
+
 pub fn read_string<'a>(buf: &mut &'a [u8]) -> Result<&'a str, ParseError> {
     let len = read_short_length(buf)?;
     let raw = read_raw_bytes(len, buf)?;
@@ -303,6 +333,8 @@ fn type_string() {
         assert_eq!(read_string(&mut &buf[..]).unwrap(), *val);
     }
 }
+
+// It's hard to model &str/String (not [u8] arrays!) with Kani
 
 pub fn read_long_string<'a>(buf: &mut &'a [u8]) -> Result<&'a str, ParseError> {
     let len = read_int_length(buf)?;
@@ -328,6 +360,8 @@ fn type_long_string() {
         assert_eq!(read_long_string(&mut &buf[..]).unwrap(), *val);
     }
 }
+
+// It's hard to model &str/String (not [u8] arrays!) with Kani
 
 pub fn read_string_map(buf: &mut &[u8]) -> Result<HashMap<String, String>, ParseError> {
     let len = read_short_length(buf)?;
@@ -364,6 +398,8 @@ fn type_string_map() {
     assert_eq!(read_string_map(&mut &buf[..]).unwrap(), val);
 }
 
+// It's hard to model &str/String (not [u8] arrays!) with Kani
+
 pub fn read_string_list(buf: &mut &[u8]) -> Result<Vec<String>, ParseError> {
     let len = read_short_length(buf)?;
     let mut v = Vec::with_capacity(len);
@@ -394,6 +430,8 @@ fn type_string_list() {
     write_string_list(&val, &mut buf).unwrap();
     assert_eq!(read_string_list(&mut &buf[..]).unwrap(), val);
 }
+
+// It's hard to model &str/String (not [u8] arrays!) with Kani
 
 pub fn read_string_multimap(buf: &mut &[u8]) -> Result<HashMap<String, Vec<String>>, ParseError> {
     let len = read_short_length(buf)?;
@@ -433,6 +471,8 @@ fn type_string_multimap() {
     assert_eq!(read_string_multimap(&mut &buf[..]).unwrap(), val);
 }
 
+// It's hard to model &str/String (not [u8] arrays!) with Kani
+
 pub fn read_uuid(buf: &mut &[u8]) -> Result<Uuid, ParseError> {
     let raw = read_raw_bytes(16, buf)?;
 
@@ -448,6 +488,16 @@ pub fn write_uuid(uuid: &Uuid, buf: &mut impl BufMut) {
 #[test]
 fn type_uuid() {
     let u = Uuid::parse_str("f3b4958c-52a1-11e7-802a-010203040506").unwrap();
+    let mut buf = Vec::new();
+    write_uuid(&u, &mut buf);
+    let u2 = read_uuid(&mut &*buf).unwrap();
+    assert_eq!(u, u2);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn type_uuid_kani() {
+    let u = Uuid::from_fields(kani::any(), kani::any(), kani::any(), &kani::any());
     let mut buf = Vec::new();
     write_uuid(&u, &mut buf);
     let u2 = read_uuid(&mut &*buf).unwrap();
@@ -493,6 +543,16 @@ fn type_consistency() {
     // Check that the error message contains information about the invalid value
     let err_str = format!("{}", c_result.unwrap_err());
     assert!(err_str.contains(&format!("{}", c)));
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn type_consistency_kani() {
+    let c = kani::any();
+    let mut buf = Vec::new();
+    write_consistency(c, &mut buf);
+    let c2 = read_consistency(&mut &*buf).unwrap();
+    assert_eq!(LegacyConsistency::Regular(c), c2);
 }
 
 pub fn read_inet(buf: &mut &[u8]) -> Result<SocketAddr, ParseError> {
@@ -541,6 +601,25 @@ fn type_inet() {
 
     let iv4 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1234);
     let iv6 = SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1)), 2345);
+    let mut buf = Vec::new();
+
+    write_inet(iv4, &mut buf);
+    let read_iv4 = read_inet(&mut &*buf).unwrap();
+    assert_eq!(iv4, read_iv4);
+    buf.clear();
+
+    write_inet(iv6, &mut buf);
+    let read_iv6 = read_inet(&mut &*buf).unwrap();
+    assert_eq!(iv6, read_iv6);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn type_inet_kani() {
+    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+    let iv4 = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(kani::any(), kani::any(), kani::any(), kani::any())), kani::any());
+    let iv6 = SocketAddr::new(IpAddr::V6(Ipv6Addr::new(kani::any(), kani::any(), kani::any(), kani::any(), kani::any(), kani::any(), kani::any(), kani::any())), kani::any());
     let mut buf = Vec::new();
 
     write_inet(iv4, &mut buf);
@@ -626,6 +705,19 @@ fn zig_zag_decode_test() {
     assert_eq!(zig_zag_decode(5), -3);
     assert_eq!(zig_zag_decode(6), 3);
 }
+
+// fails with:
+// Check 6: frame::types::zig_zag_encode.undefined-shift.1
+//     - Status: FAILURE
+//     - Description: "shift operand is negative"
+//     - Location: src/frame/types.rs:636:18 in function frame::types::zig_zag_encode
+//
+// #[cfg(kani)]
+// #[kani::proof]
+// fn zig_zag_kani() {
+//     let val = kani::any();
+//     assert_eq!(zig_zag_decode(zig_zag_encode(val)), val);
+// }
 
 #[test]
 fn unsigned_vint_encode_and_decode_test() {
@@ -876,3 +968,17 @@ fn vint_encode_and_decode_test() {
     check(-i64::MAX);
     check(i64::MIN)
 }
+
+// Fails with:
+//  Failed Checks: shift operand is negative
+//  File: "/home/piotrgrabowski/scylla1/scylla-rust-driver/scylla-cql/src/frame/types.rs", line 636, in frame::types::zig_zag_encode
+//
+// #[cfg(kani)]
+// #[kani::proof]
+// fn vint_encode_and_decode_kani() {
+//     let mut buf: Vec<u8> = Vec::with_capacity(128);
+
+//     let n: i64 = kani::any();
+//     vint_encode(n, &mut buf);
+//     assert_eq!(vint_decode(&mut buf.as_slice()).unwrap(), n);
+// }

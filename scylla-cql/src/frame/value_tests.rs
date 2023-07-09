@@ -29,10 +29,33 @@ fn basic_serialization() {
     assert_eq!(serialized("abc".to_string()), vec![0, 0, 0, 3, 97, 98, 99]);
 }
 
+#[cfg(kani)]
+#[kani::proof]
+fn basic_serialization_kani() {
+    // No asserts here, but Kani will still prove:
+    // - Memory safety (e.g., null pointer dereferences)
+    // - User-specified assertions (i.e., assert!(...))
+    // - The absence of panics (e.g., unwrap() on None values)
+    // - The absence of some types of unexpected behavior (e.g., arithmetic overflows)
+
+    serialized(kani::any::<i8>());
+    serialized(kani::any::<i16>());
+    serialized(kani::any::<i32>());
+    serialized(kani::any::<i64>());
+}
+
 #[test]
 fn u8_array_serialization() {
     let val = [1u8; 4];
     assert_eq!(serialized(val), vec![0, 0, 0, 4, 1, 1, 1, 1]);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn u8_array_serialization_kani() {
+    serialized(kani::any::<[u8; 0]>());
+    serialized(kani::any::<[u8; 4]>());
+    serialized(kani::any::<[u8; 10]>());
 }
 
 #[test]
@@ -56,6 +79,19 @@ fn naive_date_serialization() {
     assert_eq!((2_u32.pow(31) + 30).to_be_bytes(), [128, 0, 0, 30]);
 }
 
+// Fails with:
+//  Failed Checks: shift operand is negative
+//   File: "/home/piotrgrabowski/.cargo/registry/src/index.crates.io-6f17d22bba15001f/chrono-0.4.23/src/naive/date.rs", line 239, in chrono::NaiveDate::from_of
+//
+// #[cfg(kani)]
+// #[kani::proof]
+// fn naive_date_serialization_kani() {
+//     let num_days = kani::any();
+//     kani::assume(num_days >= -1_000_000); // this range should and can be bigger
+//     kani::assume(num_days <= 1_000_000);
+//     serialized(NaiveDate::from_num_days_from_ce_opt(num_days).unwrap());
+// }
+
 #[test]
 fn date_serialization() {
     assert_eq!(serialized(Date(0)), vec![0, 0, 0, 4, 0, 0, 0, 0]);
@@ -63,6 +99,12 @@ fn date_serialization() {
         serialized(Date(u32::MAX)),
         vec![0, 0, 0, 4, 255, 255, 255, 255]
     );
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn date_serialization_kani() {
+    serialized(Date(kani::any()));
 }
 
 #[test]
@@ -91,6 +133,12 @@ fn time_serialization() {
     assert_eq!(long_time.serialize(&mut Vec::new()), Err(ValueTooBig));
 }
 
+#[cfg(kani)]
+#[kani::proof]
+fn time_serialization_kani() {
+    serialized(Time(Duration::nanoseconds(kani::any())));
+}
+
 #[test]
 fn timestamp_serialization() {
     // Timestamp is milliseconds since unix epoch represented as i64
@@ -105,6 +153,12 @@ fn timestamp_serialization() {
         assert_eq!(bytes, expected_bytes);
         assert_eq!(expected_bytes.len(), 12);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn timestamp_serialization_kani() {
+    serialized(Timestamp(Duration::milliseconds(kani::any())));
 }
 
 #[test]
@@ -128,6 +182,18 @@ fn datetime_serialization() {
         assert_eq!(bytes, expected_bytes);
         assert_eq!(expected_bytes.len(), 12);
     }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn datetime_serialization_kani() {
+    use chrono::{DateTime, NaiveDateTime, Utc};
+    let test_val: i64 = kani::any();
+    kani::assume(test_val >= -2208936075000); // Those bounds should and can be larger
+    kani::assume(test_val <= 1662921288000);
+    let native_datetime = NaiveDateTime::from_timestamp_millis(test_val).unwrap();
+    let test_datetime = DateTime::<Utc>::from_utc(native_datetime, Utc);
+    serialized(test_datetime);
 }
 
 #[test]
@@ -161,6 +227,15 @@ fn option_value() {
     assert_eq!(serialized(Some(32_i32)), vec![0, 0, 0, 4, 0, 0, 0, 32]);
     let null_i32: Option<i32> = None;
     assert_eq!(serialized(null_i32), &(-1_i32).to_be_bytes()[..]);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn option_value_serialization_kani() {
+    serialized(kani::any::<Option<i32>>());
+    serialized(kani::any::<Option<[u8; 0]>>());
+    serialized(kani::any::<Option<[u8; 4]>>());
+    serialized(kani::any::<Option<[u8; 10]>>());
 }
 
 #[test]

@@ -6,7 +6,7 @@ pub mod server_event_type;
 pub mod types;
 pub mod value;
 
-#[cfg(test)]
+#[cfg(any(test, kani))]
 mod value_tests;
 
 use crate::frame::frame_errors::FrameError;
