@@ -937,7 +937,7 @@ impl Session {
         let values_ref = &serialized_values;
         let paging_state_ref = &paging_state;
 
-        let partition_key = self.calculate_partition_key(prepared, &serialized_values)?;
+        let partition_key = calculate_partition_key(prepared, &serialized_values)?;
         let token = partition_key
             .as_ref()
             .map(|pk| prepared.get_partitioner_name().hash(pk));
@@ -1067,7 +1067,7 @@ impl Session {
     ) -> Result<RowIterator, QueryError> {
         let prepared = prepared.into();
         let serialized_values = values.serialized()?;
-        let partition_key = self.calculate_partition_key(&prepared, &serialized_values)?;
+        let partition_key = calculate_partition_key(&prepared, &serialized_values)?;
         let token = partition_key
             .as_ref()
             .map(|pk| prepared.get_partitioner_name().hash(pk));
@@ -1841,18 +1841,6 @@ impl Session {
         .await
     }
 
-    fn calculate_partition_key(
-        &self,
-        prepared: &PreparedStatement,
-        serialized_values: &SerializedValues,
-    ) -> Result<Option<Bytes>, QueryError> {
-        if !prepared.is_token_aware() {
-            return Ok(None);
-        }
-        let partition_key = calculate_partition_key(prepared, serialized_values)?;
-        Ok(Some(partition_key))
-    }
-
     /// Calculates the token for given prepared statement and serialized values.
     ///
     /// Returns the token that would be computed for executing the provided
@@ -1862,7 +1850,7 @@ impl Session {
         prepared: &PreparedStatement,
         serialized_values: &SerializedValues,
     ) -> Result<Option<Token>, QueryError> {
-        match self.calculate_partition_key(prepared, serialized_values) {
+        match calculate_partition_key(prepared, serialized_values) {
             Ok(Some(partition_key)) => {
                 let partitioner_name = prepared.get_partitioner_name();
                 Ok(Some(partitioner_name.hash(&partition_key)))
@@ -1919,11 +1907,14 @@ impl Session {
 }
 
 fn calculate_partition_key(
-    stmt: &PreparedStatement,
-    values: &SerializedValues,
-) -> Result<Bytes, QueryError> {
-    match stmt.compute_partition_key(values) {
-        Ok(key) => Ok(key),
+    prepared: &PreparedStatement,
+    serialized_values: &SerializedValues,
+) -> Result<Option<Bytes>, QueryError> {
+    if !prepared.is_token_aware() {
+        return Ok(None);
+    }
+    match prepared.compute_partition_key(serialized_values) {
+        Ok(key) => Ok(Some(key)),
         Err(PartitionKeyError::NoPkIndexValue(_, _)) => Err(QueryError::ProtocolError(
             "No pk indexes - can't calculate token",
         )),
