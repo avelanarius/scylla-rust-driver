@@ -14,6 +14,7 @@ use crate::history::HistoryListener;
 use crate::retry_policy::RetryPolicy;
 use crate::transport::execution_profile::ExecutionProfileHandle;
 use crate::transport::partitioner::PartitionerName;
+use crate::routing::Token;
 
 /// Represents a statement prepared on the server.
 #[derive(Debug)]
@@ -188,6 +189,17 @@ impl PreparedStatement {
             buf.put_u8(0);
         }
         Ok(buf.into())
+    }
+
+    pub fn compute_token(
+        &self,
+        bound_values: &SerializedValues,
+    ) -> Result<Option<Token>, PartitionKeyError> {
+        if !self.is_token_aware() {
+            return Ok(None);
+        }
+
+        Ok(Some(self.get_partitioner_name().hash(&self.compute_partition_key(&bound_values)?)))
     }
 
     /// Returns the name of the keyspace this statement is operating on.

@@ -1147,7 +1147,7 @@ impl Session {
                         .get_consistency()
                         .unwrap_or(self.default_execution_profile_handle.access().consistency),
                     serial_consistency: batch.get_serial_consistency(),
-                    token: self.calculate_token(ps, first_serialized_value)?,
+                    token: calculate_token(ps, first_serialized_value)?,
                     keyspace: ps.get_keyspace_name(),
                     is_confirmed_lwt: false,
                 }
@@ -1841,25 +1841,6 @@ impl Session {
         .await
     }
 
-    /// Calculates the token for given prepared statement and serialized values.
-    ///
-    /// Returns the token that would be computed for executing the provided
-    /// prepared statement with the provided values.
-    pub fn calculate_token(
-        &self,
-        prepared: &PreparedStatement,
-        serialized_values: &SerializedValues,
-    ) -> Result<Option<Token>, QueryError> {
-        match calculate_partition_key(prepared, serialized_values) {
-            Ok(Some(partition_key)) => {
-                let partitioner_name = prepared.get_partitioner_name();
-                Ok(Some(partitioner_name.hash(&partition_key)))
-            }
-            Ok(None) => Ok(None),
-            Err(err) => Err(err),
-        }
-    }
-
     /// Calculates the token for given partitioner and serialized partition key.
     ///
     /// The ordinary way to calculate token is based on a PreparedStatement
@@ -1915,6 +1896,21 @@ fn calculate_partition_key(
     }
     match prepared.compute_partition_key(serialized_values) {
         Ok(key) => Ok(Some(key)),
+        Err(PartitionKeyError::NoPkIndexValue(_, _)) => Err(QueryError::ProtocolError(
+            "No pk indexes - can't calculate token",
+        )),
+        Err(PartitionKeyError::ValueTooLong(values_len)) => Err(QueryError::BadQuery(
+            BadQuery::ValuesTooLongForKey(values_len, u16::MAX.into()),
+        )),
+    }
+}
+
+fn calculate_token(
+    prepared: &PreparedStatement,
+    serialized_values: &SerializedValues,
+) -> Result<Option<Token>, QueryError> {
+    match prepared.compute_token(serialized_values) {
+        Ok(key) => Ok(key),
         Err(PartitionKeyError::NoPkIndexValue(_, _)) => Err(QueryError::ProtocolError(
             "No pk indexes - can't calculate token",
         )),
