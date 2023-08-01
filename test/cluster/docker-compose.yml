@@ -8,6 +8,7 @@ networks:
       driver: default
       config:
         - subnet: 172.42.0.0/16
+        # Adjust network configuration here if necessary
 services:
   scylla1:
     image: scylladb/scylla
@@ -22,6 +23,7 @@ services:
       --ring-delay-ms 0
       --smp 2
       --memory 1G
+      # Add or adjust ScyllaDB command options here as necessary
     healthcheck:
       test: [ "CMD", "cqlsh", "-e", "select * from system.local" ]
       interval: 5s
