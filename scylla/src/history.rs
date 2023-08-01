@@ -472,6 +472,41 @@ mod tests {
         Consistency,
     };
 
+    #[tokio::test]
+    async fn test_log_query_start() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_log_query_success() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_log_query_error() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_log_new_speculative_fiber() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_log_attempt_start() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_log_attempt_success() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_log_attempt_error() {
+        // Add test code here
+    }
+
     // Set a single time for all timestamps within StructuredHistory.
     // HistoryCollector sets the timestamp to current time which changes with each test.
     // Setting it to one makes it possible to test displaying consistently.
