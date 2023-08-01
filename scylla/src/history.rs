@@ -455,6 +455,55 @@ mod tests {
         sync::Arc,
     };
 
+    #[test]
+    fn log_query_start_multiple_times() {
+        let history_collector = HistoryCollector::new();
+
+        let query_id1: QueryId = history_collector.log_query_start();
+        let query_id2: QueryId = history_collector.log_query_start();
+        let query_id3: QueryId = history_collector.log_query_start();
+
+        assert_ne!(query_id1, query_id2);
+        assert_ne!(query_id1, query_id3);
+        assert_ne!(query_id2, query_id3);
+    }
+
+    #[test]
+    fn log_query_success_multiple_times() {
+        let history_collector = HistoryCollector::new();
+
+        let query_id1: QueryId = history_collector.log_query_start();
+        history_collector.log_query_success(query_id1);
+
+        let query_id2: QueryId = history_collector.log_query_start();
+        history_collector.log_query_success(query_id2);
+
+        let query_id3: QueryId = history_collector.log_query_start();
+        history_collector.log_query_success(query_id3);
+
+        let history: StructuredHistory = history_collector.clone_structured_history();
+
+        assert_eq!(history.queries.len(), 3);
+    }
+
+    #[test]
+    fn log_query_error_multiple_times() {
+        let history_collector = HistoryCollector::new();
+
+        let query_id1: QueryId = history_collector.log_query_start();
+        history_collector.log_query_error(query_id1, &QueryError::TimeoutError);
+
+        let query_id2: QueryId = history_collector.log_query_start();
+        history_collector.log_query_error(query_id2, &QueryError::TimeoutError);
+
+        let query_id3: QueryId = history_collector.log_query_start();
+        history_collector.log_query_error(query_id3, &QueryError::TimeoutError);
+
+        let history: StructuredHistory = history_collector.clone_structured_history();
+
+        assert_eq!(history.queries.len(), 3);
+    }
+
     use crate::{
         query::Query, retry_policy::RetryDecision, utils::test_utils::unique_keyspace_name,
     };
