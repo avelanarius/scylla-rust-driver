@@ -225,6 +225,11 @@ mod tests {
     use super::{PrecomputedReplicas, ReplicationInfo};
 
     #[tokio::test]
+    async fn test_compute() {
+        // Add test code here
+    }
+
+    #[tokio::test]
     async fn test_simple_stategy() {
         let mut metadata = mock_metadata_for_token_aware_tests();
         metadata.keyspaces = [(
