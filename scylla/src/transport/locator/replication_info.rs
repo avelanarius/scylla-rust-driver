@@ -210,7 +210,42 @@ mod tests {
         },
     };
 
-    use super::ReplicationInfo;
+    use super::{DatacenterNodes, ReplicationInfo};
+
+    #[tokio::test]
+    async fn test_get_dc_ring() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_get_rack_count() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_get_datacenters() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_get_global_ring() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_new() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_unique_nodes_in_global_ring() {
+        // Add test code here
+    }
+
+    #[tokio::test]
+    async fn test_unique_nodes_in_datacenter_ring() {
+        // Add test code here
+    }
 
     #[tokio::test]
     async fn test_simple_strategy() {
