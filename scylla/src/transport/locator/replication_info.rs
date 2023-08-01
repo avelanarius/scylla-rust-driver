@@ -213,6 +213,33 @@ mod tests {
     use super::ReplicationInfo;
 
     #[tokio::test]
+    async fn test_new_empty() {
+        let ring = create_ring(&[]);
+        let replication_info = ReplicationInfo::new(ring);
+
+        assert!(replication_info.get_datacenters().is_empty());
+        assert!(replication_info.get_global_ring().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_simple_strategy_large_rf() {
+        let ring = create_ring(&mock_metadata_for_token_aware_tests());
+        let replication_info = ReplicationInfo::new(ring);
+
+        let replicas = replication_info.simple_strategy_replicas(Token { value: 200 }, 10);
+        assert_eq!(replicas.count(), 7);
+    }
+
+    #[tokio::test]
+    async fn test_nts_replicas_in_nonexistent_dc() {
+        let ring = create_ring(&mock_metadata_for_token_aware_tests());
+        let replication_info = ReplicationInfo::new(ring);
+
+        let replicas = replication_info.nts_replicas_in_datacenter(Token { value: 200 }, "nonexistent", 2);
+        assert!(replicas.is_empty());
+    }
+
+    #[tokio::test]
     async fn test_simple_strategy() {
         let ring = create_ring(&mock_metadata_for_token_aware_tests());
         let replication_info = ReplicationInfo::new(ring);
