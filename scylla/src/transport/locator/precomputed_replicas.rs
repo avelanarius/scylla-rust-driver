@@ -225,6 +225,49 @@ mod tests {
     use super::{PrecomputedReplicas, ReplicationInfo};
 
     #[tokio::test]
+    async fn test_compute_empty() {
+        let metadata = mock_metadata_for_token_aware_tests();
+        let ring = create_ring(&metadata);
+        let replication_info = ReplicationInfo::new(ring);
+        let precomputed_replicas = PrecomputedReplicas::compute(&replication_info, std::iter::empty());
+
+        assert!(precomputed_replicas.get_precomputed_simple_strategy_replicas(Token { value: 200 }, 2).is_none());
+        assert!(precomputed_replicas.get_precomputed_network_strategy_replicas(Token { value: 200 }, "eu", 2).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_precomputed_simple_strategy_replicas_nonexistent_token() {
+        let metadata = mock_metadata_for_token_aware_tests();
+        let ring = create_ring(&metadata);
+        let replication_info = ReplicationInfo::new(ring);
+        let precomputed_replicas = PrecomputedReplicas::compute(
+            &replication_info,
+            metadata
+                .keyspaces
+                .values()
+                .map(|keyspace| &keyspace.strategy),
+        );
+
+        assert!(precomputed_replicas.get_precomputed_simple_strategy_replicas(Token { value: 1000 }, 2).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_precomputed_network_strategy_replicas_nonexistent_dc() {
+        let metadata = mock_metadata_for_token_aware_tests();
+        let ring = create_ring(&metadata);
+        let replication_info = ReplicationInfo::new(ring);
+        let precomputed_replicas = PrecomputedReplicas::compute(
+            &replication_info,
+            metadata
+                .keyspaces
+                .values()
+                .map(|keyspace| &keyspace.strategy),
+        );
+
+        assert!(precomputed_replicas.get_precomputed_network_strategy_replicas(Token { value: 200 }, "nonexistent", 2).is_none());
+    }
+
+    #[tokio::test]
     async fn test_simple_stategy() {
         let mut metadata = mock_metadata_for_token_aware_tests();
         metadata.keyspaces = [(
