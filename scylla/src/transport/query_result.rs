@@ -264,6 +264,47 @@ mod tests {
     use crate::frame::response::result::{ColumnSpec, ColumnType, CqlValue, Row, TableSpec};
     use std::convert::TryInto;
 
+    #[test]
+    fn rows_num_multiple_rows_test() {
+        assert_eq!(make_rows_query_result(2).rows_num(), Ok(2));
+        assert_eq!(make_rows_query_result(3).rows_num(), Ok(3));
+        assert_eq!(make_rows_query_result(4).rows_num(), Ok(4));
+    }
+
+    #[test]
+    fn rows_multiple_rows_test() {
+        assert_eq!(make_rows_query_result(2).rows(), Ok(make_rows(2)));
+        assert_eq!(make_rows_query_result(3).rows(), Ok(make_rows(3)));
+        assert_eq!(make_rows_query_result(4).rows(), Ok(make_rows(4)));
+    }
+
+    #[test]
+    fn rows_typed_multiple_rows_test() {
+        let rows2: Vec<(i32,)> = make_rows_query_result(2)
+            .rows_typed::<(i32,)>()
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+
+        assert_eq!(rows2, vec![(0,), (1,)]);
+
+        let rows3: Vec<(i32,)> = make_rows_query_result(3)
+            .rows_typed::<(i32,)>()
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+
+        assert_eq!(rows3, vec![(0,), (1,), (2,)]);
+
+        let rows4: Vec<(i32,)> = make_rows_query_result(4)
+            .rows_typed::<(i32,)>()
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+
+        assert_eq!(rows4, vec![(0,), (1,), (2,), (3,)]);
+    }
+
     // Returns specified number of rows, each one containing one int32 value.
     // Values are 0, 1, 2, 3, 4, ...
     fn make_rows(rows_num: usize) -> Vec<Row> {
