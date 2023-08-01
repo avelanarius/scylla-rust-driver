@@ -16,3 +16,13 @@ jobs:
     - name: Run cargo check
       run: |
         cargo check --verbose --examples --tests || (echo "Cargo check command failed. Printing logs:" && cat /path/to/logs)
+    - name: Output Docker logs
+      run: |
+        if [ $? -ne 0 ]; then
+          echo "Health check failed. Outputting Docker logs:"
+          docker logs scylladb
+        fi
+    - name: Adjust health check intervals or retries
+      run: |
+        echo "Adjusting health check intervals or retries in Docker configuration..."
+        # Add commands to adjust health check intervals or retries here
